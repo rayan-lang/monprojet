@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash
 import sqlite3
 import qrcode
 from io import BytesIO
@@ -8,12 +8,15 @@ app = Flask(__name__)
 app.secret_key = 'ma_cle_secrete'
 DB_FILE = 'sorties.db'
 
+# URL de base pour l'application déployée sur Render
+BASE_URL = "https://monprojet-j8sc.onrender.com"  # Remplace par ton URL Render
+
 # Création des tables si elles n'existent pas
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
-    # Table historique
+    # Table historique des sorties
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS historique (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,7 +26,7 @@ def init_db():
         )
     ''')
 
-    # Table eleves (pour l'espace admin)
+    # Table des élèves
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS eleves (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,7 +35,7 @@ def init_db():
         )
     ''')
 
-    # Table horaires
+    # Table des horaires
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS horaires (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,7 +58,7 @@ init_db()
 def index():
     return render_template('index.html')
 
-# Génération de QR code avec les horaires dynamiques
+# Génération de QR code avec redirection vers la page des horaires de l'élève
 @app.route('/generate', methods=['POST'])
 def generate_qr():
     nom_eleve = request.form['nom_eleve']
@@ -63,23 +66,21 @@ def generate_qr():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
-    # Récupérer les horaires dynamiques
-    cursor.execute("SELECT horaires FROM horaires LIMIT 1")
-    horaires = cursor.fetchone()[0]
-
     # Ajouter l'élève dans la table eleves s'il n'existe pas
     cursor.execute("INSERT OR IGNORE INTO eleves (nom_eleve) VALUES (?)", (nom_eleve,))
     conn.commit()
 
-    # Générer le QR code avec les horaires dynamiques
-    qr_data = f"http://127.0.0.1:5000/verification/{nom_eleve}"
+    # URL de la page des horaires
+    qr_data = f"{BASE_URL}/horaires/{nom_eleve}"
+
+    # Générer le QR code avec l'URL complète
     qr = qrcode.make(qr_data)
     buffer = BytesIO()
     qr.save(buffer, format='PNG')
     qr_base64 = base64.b64encode(buffer.getvalue()).decode()
 
     conn.close()
-    return render_template('qr.html', qr_code=qr_base64, nom_eleve=nom_eleve, horaires=horaires)
+    return render_template('qr.html', qr_code=qr_base64, nom_eleve=nom_eleve)
 
 # Historique des sorties
 @app.route('/historique')
@@ -101,7 +102,7 @@ def admin():
     cursor.execute("SELECT nom_eleve, autorise FROM eleves")
     eleves = cursor.fetchall()
 
-    # Récupérer les horaires
+    # Récupérer les horaires dynamiques
     cursor.execute("SELECT horaires FROM horaires LIMIT 1")
     horaires = cursor.fetchone()[0]
 
@@ -136,23 +137,21 @@ def update_horaires():
     flash('Les horaires ont été mis à jour avec succès.', 'success')
     return redirect(url_for('admin'))
 
-# Vérification des QR codes
-@app.route('/verification/<nom_eleve>')
-def verification(nom_eleve):
+# Page des horaires d'un élève (accessible via le QR code)
+@app.route('/horaires/<nom_eleve>')
+def horaires_eleve(nom_eleve):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT autorise FROM eleves WHERE nom_eleve = ?", (nom_eleve,))
-    eleve = cursor.fetchone()
+
+    # Récupérer les horaires dynamiques
+    cursor.execute("SELECT horaires FROM horaires LIMIT 1")
+    horaires = cursor.fetchone()
+
+    if horaires:
+        horaires = horaires[0]
+
     conn.close()
-
-    if eleve and eleve[0] == 1:
-        message = f"{nom_eleve} est autorisé à sortir."
-        status = "success"
-    else:
-        message = f"{nom_eleve} n'est pas autorisé à sortir."
-        status = "danger"
-
-    return render_template('verification.html', message=message, status=status)
+    return render_template('horaires.html', nom_eleve=nom_eleve, horaires=horaires)
 
 if __name__ == '__main__':
     print("Le serveur Flask démarre...")
