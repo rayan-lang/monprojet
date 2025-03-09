@@ -4,43 +4,58 @@
     <meta charset="UTF-8">
     <title>Espace Admin</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
-        h1 { text-align: center; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
-        form { display: inline; }
-        button { padding: 5px 10px; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+        }
+        table {
+            margin: 20px auto;
+            border-collapse: collapse;
+            width: 80%;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        td {
+            background-color: white;
+        }
+        a.logout {
+            display: inline-block;
+            background-color: red;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin-top: 20px;
+        }
+        a.logout:hover {
+            background-color: darkred;
+        }
     </style>
 </head>
 <body>
-    <h1>Gestion des permissions et horaires</h1>
-
-    <h2>Modifier les horaires</h2>
-    <form action="/update_horaires" method="post">
-        <input type="text" name="horaires" value="{{ horaires }}" required>
-        <button type="submit">Mettre à jour</button>
-    </form>
-
-    <h2>Liste des élèves</h2>
+    <h1>Espace Admin</h1>
+    <h2>Horaires : {{ horaires }}</h2>
     <table>
         <tr>
             <th>Nom de l'élève</th>
-            <th>Autorisé à sortir</th>
-            <th>Actions</th>
+            <th>Horaires</th>
+            <th>Autorisé</th>
         </tr>
         {% for eleve in eleves %}
         <tr>
             <td>{{ eleve[0] }}</td>
-            <td>{{ 'Oui' if eleve[1] else 'Non' }}</td>
-            <td>
-                <form action="/update_permission" method="post">
-                    <input type="hidden" name="nom_eleve" value="{{ eleve[0] }}">
-                    <input type="checkbox" name="autorise" {% if eleve[1] %}checked{% endif %}>
-                    <button type="submit">Mettre à jour</button>
-                </form>
-            </td>
+            <td>{{ eleve[1] }}</td>
+            <td>{{ 'Oui' if eleve[2] else 'Non' }}</td>
         </tr>
         {% endfor %}
     </table>
+    <a href="{{ url_for('logout') }}" class="logout">Se déconnecter</a>
 </body>
 </html>
