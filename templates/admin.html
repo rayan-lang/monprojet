@@ -4,16 +4,67 @@
     <meta charset="UTF-8">
     <title>Espace Admin</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
-        h1 { text-align: center; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
-        form { display: inline; }
-        button { padding: 5px 10px; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        .logout-btn {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+        .logout-btn a {
+            background: red;
+            color: white;
+            padding: 10px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .logout-btn a:hover {
+            background: darkred;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        form {
+            display: inline;
+        }
+        button {
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
     <h1>Gestion des permissions et horaires</h1>
+
+    <!-- Bouton de déconnexion ici -->
+    <div class="logout-btn">
+        <a href="{{ url_for('logout') }}">Se déconnecter</a>
+    </div>
 
     <h2>Modifier les horaires</h2>
     <form action="/update_horaires" method="post">

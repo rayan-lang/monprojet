@@ -1,15 +1,17 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 import sqlite3
 import qrcode
 from io import BytesIO
 import base64
 
 app = Flask(__name__)
-app.secret_key = 'ma_cle_secrete'
+app.secret_key = 'ma_cle_secrete'  # Pour les sessions
 DB_FILE = 'sorties.db'
+BASE_URL = "https://monprojet-j8sc.onrender.com"
 
-# URL de base pour l'application déployée sur Render
-BASE_URL = "https://monprojet-j8sc.onrender.com"  # Remplace par ton URL Render
+# Identifiants admin
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin123"
 
 # Création des tables si elles n'existent pas
 def init_db():
@@ -53,27 +55,67 @@ def init_db():
 
 init_db()
 
+# Page de connexion
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session['admin'] = True
+            flash("Connexion réussie", "success")
+            return redirect(url_for('admin'))
+        else:
+            flash("Identifiant ou mot de passe incorrect", "danger")
+
+    return render_template('login.html')
+
+# Déconnexion
+@app.route('/logout')
+def logout():
+    session.pop('admin', None)
+    flash("Déconnexion réussie", "info")
+    return redirect(url_for('login'))
+
+# Espace admin sécurisé
+@app.route('/admin')
+def admin():
+    if not session.get('admin'):
+        flash("Accès non autorisé. Veuillez vous connecter.", "danger")
+        return redirect(url_for('login'))
+
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    # Récupérer les élèves
+    cursor.execute("SELECT nom_eleve, autorise FROM eleves")
+    eleves = cursor.fetchall()
+
+    # Récupérer les horaires dynamiques
+    cursor.execute("SELECT horaires FROM horaires LIMIT 1")
+    horaires = cursor.fetchone()[0]
+
+    conn.close()
+    return render_template('admin.html', eleves=eleves, horaires=horaires)
+
 # Page d'accueil
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# Génération de QR code avec redirection vers la page des horaires de l'élève
+# Génération de QR code
 @app.route('/generate', methods=['POST'])
 def generate_qr():
     nom_eleve = request.form['nom_eleve']
 
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-
-    # Ajouter l'élève dans la table eleves s'il n'existe pas
     cursor.execute("INSERT OR IGNORE INTO eleves (nom_eleve) VALUES (?)", (nom_eleve,))
     conn.commit()
 
-    # URL de la page des horaires
     qr_data = f"{BASE_URL}/horaires/{nom_eleve}"
 
-    # Générer le QR code avec l'URL complète
     qr = qrcode.make(qr_data)
     buffer = BytesIO()
     qr.save(buffer, format='PNG')
@@ -92,58 +134,11 @@ def historique():
     conn.close()
     return render_template('historique.html', sorties=sorties)
 
-# Espace admin
-@app.route('/admin')
-def admin():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-
-    # Récupérer les élèves
-    cursor.execute("SELECT nom_eleve, autorise FROM eleves")
-    eleves = cursor.fetchall()
-
-    # Récupérer les horaires dynamiques
-    cursor.execute("SELECT horaires FROM horaires LIMIT 1")
-    horaires = cursor.fetchone()[0]
-
-    conn.close()
-    return render_template('admin.html', eleves=eleves, horaires=horaires)
-
-# Mise à jour des permissions d'un élève
-@app.route('/update_permission', methods=['POST'])
-def update_permission():
-    nom_eleve = request.form['nom_eleve']
-    autorise = 1 if 'autorise' in request.form else 0
-
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE eleves SET autorise = ? WHERE nom_eleve = ?", (autorise, nom_eleve))
-    conn.commit()
-    conn.close()
-    flash(f"Permission mise à jour pour {nom_eleve}", "success")
-    return redirect(url_for('admin'))
-
-# Mise à jour des horaires
-@app.route('/update_horaires', methods=['POST'])
-def update_horaires():
-    nouveaux_horaires = request.form['horaires']
-
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE horaires SET horaires = ? WHERE id = 1", (nouveaux_horaires,))
-    conn.commit()
-    conn.close()
-
-    flash('Les horaires ont été mis à jour avec succès.', 'success')
-    return redirect(url_for('admin'))
-
-# Page des horaires d'un élève (accessible via le QR code)
+# Page des horaires d'un élève
 @app.route('/horaires/<nom_eleve>')
 def horaires_eleve(nom_eleve):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-
-    # Récupérer les horaires dynamiques
     cursor.execute("SELECT horaires FROM horaires LIMIT 1")
     horaires = cursor.fetchone()
 
@@ -154,5 +149,5 @@ def horaires_eleve(nom_eleve):
     return render_template('horaires.html', nom_eleve=nom_eleve, horaires=horaires)
 
 if __name__ == '__main__':
-    print("Le serveur Flask démarre...")
+    print("🚀 Le serveur Flask démarre...")
     app.run(debug=True)
